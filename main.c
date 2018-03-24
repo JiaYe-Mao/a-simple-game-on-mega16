@@ -8,7 +8,7 @@ http://www.hpinfotech.com
 Project : 
 Version : 
 Date    : 2016/12/17
-Author  : NeVaDa
+Author  : GaryMao
 Company : 
 Comments: 
 
@@ -32,19 +32,19 @@ Data Stack size         : 256
 
 unsigned char car=0,flag_stage=0;
 unsigned char length[4],width[4],str1[3];
-unsigned int changce=7,a=0,compare2=240;
+unsigned int changce=7,blockCount=0,interval=240;
 unsigned int flag_time=0,low=0,i,compare1=8,score=0;
 
 // External Interrupt 0 service routine
 interrupt [EXT_INT0] void ext_int0_isr(void)
 {
-   
+   // If button2 pressed
    if(!PIND.2)
    {
-     
+       // If the position of the car is 0, then put the car position to 1;
       if((car<1)&&(flag_stage==1))
       {
-        car++;
+        car=1;
       }
    }
 }
@@ -52,12 +52,13 @@ interrupt [EXT_INT0] void ext_int0_isr(void)
 // External Interrupt 1 service routine
 interrupt [EXT_INT1] void ext_int1_isr(void)
 {
-   
+   // If button3 pressed
    if(!PIND.3)
    {
+       // If the position of the car is 1, then put the car position to 0;
       if((car>0)&&(flag_stage==1))
       {
-       car--;
+        car=0;
       } 
    }
   
@@ -66,58 +67,67 @@ interrupt [EXT_INT1] void ext_int1_isr(void)
 // Timer 0 output compare interrupt service routine
 interrupt [TIM0_COMP] void timer0_comp_isr(void)
 {
-   if(flag_stage==1)
-   {
-   flag_time++;
-   if(flag_time==compare2)
-   {
-     flag_time=0;
-     changce++;    
-     
-      for(i=0;i<3;i++)
-        {
-          
-          if(length[i]<length[low])
-          {
-             low=i;
-          }
-              
-        }
-           
-       PORTA.3=~PORTA.3;
-       PORTA.4=~PORTA.4;
-        
-     if((length[low]==0)||(length[low]==1))
-        {
-          if(width[low]==car) flag_stage++; 
-          else if(length[low]==0)
-          {
-            
-             width[low]=1;
-             length[low]=65;  
-             score++;
-          }
-        }
-        
-     if(changce==compare1)
-     { 
-        changce=0;
-        length[a]=16; 
-        width[a]=rand()%2; 
-        compare1=rand()%3+4;   
-        if(compare2>100)compare2=compare2-3;
-        
-         if(a<3)a++;
-         else a=0;  
-     }
 
-     length[0]--;
-     length[1]--;
-     length[2]--;
-     length[3]--;
-    
+    if(flag_stage==1)
+    {
+        flag_time++;
+        // Every (interval * 2 / 16MHz)s time, the blocks move.
+        if(flag_time==interval)
+        {
+            flag_time=0;
+            changce++;
+
+            for(i=0;i<3;i++)
+            {
+                // find the leftmost block
+                if(length[i]<length[low])
+                {
+                    low=i;
+                }
+
+            }
+
+            // toggle the flash lights
+            PORTA.3=~PORTA.3;
+            PORTA.4=~PORTA.4;
+
+            // If the leftmost block appears at the 1st or 2nd position.
+            if((length[low]==0)||(length[low]==1))
+            {
+                // If it collides the car, finish the game.
+                if(width[low]==car) flag_stage++;
+                else if(length[low]==0)
+                {
+                    // If it doesn't, set the block to the rightmost, and increase the score.
+                    width[low]=1;
+                    length[low]=65;
+                    score++;
+                }
+            }
+
+            if(changce==compare1)
+            {
+                changce=0;
+                // The fresh block from right side.
+                length[blockCount]=16;
+                width[blockCount]=rand()%2;
+                compare1=rand()%3+4;
+                // The moving speed of blocks are increasing.
+                if(interval>100) interval=interval-3;
+
+                // If the block count < 3, then add block count
+                if(blockCount<3)blockCount++;
+                else blockCount=0;
+            }
+
+            // move the blocks to left for 1 cell
+            length[0]--;
+            length[1]--;
+            length[2]--;
+            length[3]--;
+
+        }
     }
-   }
 }
 
 // Declare your global variables here
